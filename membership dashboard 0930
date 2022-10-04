@@ -1,0 +1,287 @@
+select * from ww_customer_b2b_dl_highsecure.cust_b2b_mbrshp_dly
+
+-----------calendar---------------------------
+select min(cal_dt),max(cal_dt) from ww_core_dim_dl_tables.dl_calendar_dim
+where fiscal_full_yr_nbr = 2023
+and wm_wk_nbr = 35
+;
+-- 9/17 - 9/23
+--9/24-9/30
+
+
+--------------mbr universe-----------------
+----------------week 35 new members and their latest status------------
+drop table pb_analytics.mbrship_universe_20220923;
+create table pb_analytics.mbrship_universe_20220923 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from  pb_analytics.cust_b2b_mbrshp_dly
+where DATE(event_ts) <= DATE('2022-09-23')
+and plan_id = 'B2BBASE365'
+--and ver_dt between DATE('2022-09-17') and DATE('2022-09-23') -- newly signed up members
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org --where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6
+;
+
+
+
+drop table pb_analytics.mbrship_universe_20220930;
+create table pb_analytics.mbrship_universe_20220930 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from   PB_ANALYTICS.TEST_MBRSHIP_TABLE
+where DATE(event_ts) <= DATE('2022-09-30')
+and plan_id = 'B2BBASE365'
+--and ver_dt between DATE('2022-09-24') and DATE('2022-09-30') -- newly signed up members
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org-- where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6
+;
+
+
+---------------cumulative mbr status----------------------
+/*
+drop table pb_analytics.mbrship_universe;
+create table pb_analytics.mbrship_universe as 
+select 'week 34' as week, a.*
+from  pb_analytics.mbrship_universe_20220923 a 
+group by 1,2,3,4,5,6,7
+union 
+select 'week 35' as week, a.*
+from  pb_analytics.mbrship_universe_20220930 a 
+group by 1,2,3,4,5,6,7
+;
+
+
+select week, mbrshp_status_cd,count(distinct org_id), count(distinct org_mbr_src_cust_id)
+from pb_analytics.mbrship_universe
+group by 1,2 order by 1,2
+*/
+
+--------add free accounts-------------------------
+drop table pb_analytics.org_20220923 ;
+create table pb_analytics.org_20220923 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+left join pb_analytics.mbrship_universe_20220923 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-17') and DATE('2022-09-23')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+
+drop table  pb_analytics.org_20220930 ;
+create table pb_analytics.org_20220930 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+full outer join pb_analytics.mbrship_universe_20220930 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-17') and DATE('2022-09-30')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+----find out the "net news" which is WOW------------------------------------
+drop table pb_analytics.org_2022; 
+create table pb_analytics.org_2022 as 
+select 'week 34' as week, * from pb_analytics.org_20220923 W1
+group by 1,2,3,4,5,6,7,8,9,10,11,12
+union 
+select 'week 35' as week, W2.* from pb_analytics.org_20220930 W2
+left join 
+-------------------------from cumulative to net --
+(
+select a.* from 
+(
+select 'week 35' as week, mbrshp_status_cd, org_id, org_mbr_src_cust_id , mbr_org_id, mbr_src_cust_id from pb_analytics.org_20220930
+group by 1,2,3,4,5,6)a
+inner join 
+(select 'week 34' as week,  mbrshp_status_cd, org_id, org_mbr_src_cust_id , mbr_org_id, mbr_src_cust_id from pb_analytics.org_20220923
+group by 1,2,3,4,5,6)b
+on a.org_id = b.org_id and a.mbrshp_status_cd = b.mbrshp_status_cd 
+)overlap 
+on W2.org_id = overlap.org_id 
+where overlap.org_id is null
+group by 1,2,3,4,5,6,7,8,9,10,11,12
+;
+
+
+select mbrshp_status_cd , count(distinct org_id) , count(distinct org_mbr_src_cust_id)
+from  pb_analytics.org_20220930
+group by 1 
+order by 1
+
+
+
+
+select week, coalesce(mbrshp_status_cd,'FREE') as status, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as org_pgs,
+count(distinct mbr_org_id) as mbr_orgs, count(distinct mbr_src_cust_id )  as member_custs from  pb_analytics.org_2022
+group by 1,2
+order by 1,2
+
+
+
+
+select membership_status, count(distinct org_id) as orgs, count(distinct cust_pg_acct_id)
+from
+(
+select *, rank() over (partition by cust_pg_acct_id order by rpt_dt desc) as rnk 
+from PB_ANALYTICS.PROD_BACKBONE_DAILY_MEMBERSHIP_STATUS
+where rpt_dt between DATE('2022-09-17') and DATE('2022-09-23')
+)
+where rnk = 1
+group by 1
+;
+
+-------------------get the weekly net new ----------------------------
+drop table pb_analytics.org_2022_daily; 
+create table pb_analytics.org_2022_daily as 
+select A.*, 'week 34' as week
+from PB_ANALYTICS.PROD_BACKBONE_DAILY_MEMBERSHIP_STATUS A
+inner join (select org_id, org_mbr_src_cust_id  from pb_analytics.org_2022 where week = 'week 34' group by 1,2)B on A.org_id = B.org_id  and A.cust_pg_acct_id = upper(regexp_replace( b. org_mbr_src_cust_id , '-', '')) -- join the orgs that changed status in wk 34
+--where rpt_dt between DATE('2022-09-17') and DATE('2022-09-23')
+group by 1,2,3,4,5
+union 
+select A.*, 'week 35' as week
+from PB_ANALYTICS.PROD_BACKBONE_DAILY_MEMBERSHIP_STATUS A
+inner join (select org_id,  org_mbr_src_cust_id  from pb_analytics.org_2022 where week = 'week 35' group by 1,2)B on A.org_id = B.org_id and A.cust_pg_acct_id = upper(regexp_replace( b. org_mbr_src_cust_id , '-', ''))-- join the orgs that changed status in wk 35
+--where rpt_dt between DATE('2022-09-24') and DATE('2022-09-30')
+group by 1,2,3,4,5
+;
+
+select * from pb_analytics.org_2022_daily
+
+--------gmv daily------------------------------------------------------------------------------------------------
+
+select membership_status--, count(distinct org_id) as orgs, count(distinct a.cust_pg_acct_id) as customers
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 34')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-17') and DATE('2022-09-23')
+) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1
+;
+
+
+select membership_status--, count(distinct org_id) as orgs, count(distinct a.cust_pg_acct_id) as customers
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 35')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-24') and DATE('2022-09-30')) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1
+;
+
+------gmv cumulative----------------------
+
+/*
+
+select coalesce(mbrshp_status_cd,'FREE') as member_status, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as customers
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select mbrshp_status_cd, org_id,org_mbr_src_cust_id
+  from pb_analytics.org_2022 where week = 'week 35' group by 1,2,3)a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-24') and DATE('2022-09-30')) b on a.org_mbr_src_cust_id = b.cust_pg_acct_id
+group by 1
+
+*/
+
+
+create table pb_analytics.gmv_daily as 
+select mbrshp_status_cd, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as customers, sum(coalesce(gmv_order_amt,0)) as total_gmv
+from
+(
+select coalesce(mbrshp_status_cd ,'FREE') as mbrshp_status_cd, org_id,org_mbr_src_cust_id,gmv_order_amt
+from pb_analytics.org_daily a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-17') and DATE('2022-09-23')) b on (a.org_mbr_src_cust_id = b.cust_pg_acct_id and order_plcd_dt  = ver_dt)
+)
+group by 1
+order by 1
+;
+
+
+------------------------------------cohort--------------------------------------------------------
+select coalesce(mbrshp_status_cd,'FREE') as member_status, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as customers
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+,count(distinct b.cust_pg_acct_id) as cust_purchased
+from (select mbrshp_status_cd, org_id,org_mbr_src_cust_id
+  from pb_analytics.org_2022 where week = 'week 35' group by 1,2,3)a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-24') and DATE('2022-09-30')) b on a.org_mbr_src_cust_id = b.cust_pg_acct_id
+group by 1
+
+select coalesce(mbrshp_status_cd,'FREE') as member_status, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as customers
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+,count(distinct b.cust_pg_acct_id) as cust_purchased
+from (select mbrshp_status_cd, org_id,org_mbr_src_cust_id
+  from pb_analytics.org_2022 where week = 'week 34' group by 1,2,3)a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-17') and DATE('2022-09-30')) b on a.org_mbr_src_cust_id = b.cust_pg_acct_id
+group by 1
+
+--------cohort cancel----------------------
+  
+select count(distinct a.org_id), count(distinct b.org_id)
+from
+(
+select * from pb_analytics.org_2022 
+where week = 'week 34'
+and mbrshp_status_cd  = 'TRIAL'
+)a
+left join 
+(
+select * from pb_analytics.org_2022 
+where week = 'week 35'
+and mbrshp_status_cd  = 'EXPIRED'
+)b on a.org_id = b.org_id
+
+
+
+
