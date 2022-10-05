@@ -11,7 +11,7 @@ WHERE fiscal_full_yr_nbr = 2023
 --9/24-9/30
  --------------mbr universe-----------------
 ----------------week 34, 35 new members and their latest status------------
-
+-----------all the members and users who are eligible for membership benefits --------
 DROP TABLE pb_analytics.mbrship_universe_20220923;
 CREATE TABLE pb_analytics.mbrship_universe_20220923 AS
 SELECT a.*,
@@ -71,7 +71,7 @@ GROUP BY 1,
          5,
          6 ;
 
- --------exclude outliers and add free accounts-------------------------
+ --------exclude outliers and add all free accounts-------------------------
 
 DROP TABLE pb_analytics.org_20220923 ;
 CREATE TABLE pb_analytics.org_20220923 AS
@@ -233,7 +233,7 @@ FROM
 WHERE rnk = 1
 GROUP BY 1 ;
 
--------------------get the weekly net new ----------------------------
+-------------------get the weekly net new members (pb_analytics.org_2022) and their daily membership status (Ram's daily table)----------------------------
 
 DROP TABLE pb_analytics.org_2022_daily;
 CREATE TABLE pb_analytics.org_2022_daily AS
