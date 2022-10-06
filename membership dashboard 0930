@@ -1,4 +1,4 @@
-
+/*
 -----------calendar---------------------------
 
 SELECT min(cal_dt),
@@ -9,9 +9,10 @@ WHERE fiscal_full_yr_nbr = 2023
 
 -- 9/17 - 9/23
 --9/24-9/30
- --------------mbr universe-----------------
-----------------week 34, 35 new members and their latest status------------
+*/
+----------------weekly Cumulatives members (and users) and their latest status------------
 -----------all the members and users who are eligible for membership benefits --------
+
 DROP TABLE pb_analytics.mbrship_universe_20220923;
 CREATE TABLE pb_analytics.mbrship_universe_20220923 AS
 SELECT a.*,
@@ -71,7 +72,7 @@ GROUP BY 1,
          5,
          6 ;
 
- --------exclude outliers and add all free accounts-------------------------
+ -------Add FREE Users-------------------------
 
 DROP TABLE pb_analytics.org_20220923 ;
 CREATE TABLE pb_analytics.org_20220923 AS
@@ -203,10 +204,21 @@ GROUP BY 1,
          11,
          12 ;
 
+------<view1>: get cumualtive members (users) by status-----------------
 
+select 'week 34' as week, mbrshp_status_cd, count(distinct org_id) as cumulative_orgs, count(distinct org_mbr_src_cust_id) as cumulative_users
+from pb_analytics.org_20220923
+group by 1,2
+union 
+select 'week 35' as week, mbrshp_status_cd, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as total_users
+from pb_analytics.org_20220930
+group by 1,2
+;
+
+------<view1>: get net new weekly members (users) by status----------------
 SELECT mbrshp_status_cd,
-       count(DISTINCT org_id),
-       count(DISTINCT org_mbr_src_cust_id)
+       count(DISTINCT org_id) as orgs,
+       count(DISTINCT org_mbr_src_cust_id) as users
 FROM pb_analytics.org_20220930
 GROUP BY 1
 ORDER BY 1
@@ -233,8 +245,45 @@ FROM
 WHERE rnk = 1
 GROUP BY 1 ;
 
--------------------get the weekly net new members (pb_analytics.org_2022) and their daily membership status (Ram's daily table)----------------------------
+--------------get GMV---------------------------------------------------------------
 
+-------------get cumultively members and their GMV----------------------------
+
+CREATE TABLE pb_analytics.cumulative_org_2022_daily AS
+SELECT A.*,
+       'week 34' AS WEEK
+FROM PB_ANALYTICS.PROD_BACKBONE_DAILY_MEMBERSHIP_STATUS A
+INNER JOIN
+  (SELECT org_id,
+          org_mbr_src_cust_id
+   FROM pb_analytics.org_20220923
+   GROUP BY 1,
+            2)B ON A.org_id = B.org_id
+AND A.cust_pg_acct_id = upper(regexp_replace(b. org_mbr_src_cust_id, '-', '')) -- join the orgs that changed status in wk 34
+GROUP BY 1,
+         2,
+         3,
+         4,
+         5
+UNION
+SELECT A.*,
+       'week 35' AS WEEK
+FROM PB_ANALYTICS.PROD_BACKBONE_DAILY_MEMBERSHIP_STATUS A
+INNER JOIN
+  (SELECT org_id,
+          org_mbr_src_cust_id
+   FROM pb_analytics.org_20220930
+   WHERE WEEK = 'week 35'
+   GROUP BY 1,
+            2)B ON A.org_id = B.org_id
+AND A.cust_pg_acct_id = upper(regexp_replace(b. org_mbr_src_cust_id, '-', ''))-- join the orgs that changed status in wk 35
+GROUP BY 1,
+         2,
+         3,
+         4,
+         5 ;
+
+-------------------get the weekly net new members and their GMV----------------------------
 DROP TABLE pb_analytics.org_2022_daily;
 CREATE TABLE pb_analytics.org_2022_daily AS
 SELECT A.*,
@@ -248,7 +297,6 @@ INNER JOIN
    GROUP BY 1,
             2)B ON A.org_id = B.org_id
 AND A.cust_pg_acct_id = upper(regexp_replace(b. org_mbr_src_cust_id, '-', '')) -- join the orgs that changed status in wk 34
---where rpt_dt between DATE('2022-09-17') and DATE('2022-09-23')
 GROUP BY 1,
          2,
          3,
@@ -266,7 +314,6 @@ INNER JOIN
    GROUP BY 1,
             2)B ON A.org_id = B.org_id
 AND A.cust_pg_acct_id = upper(regexp_replace(b. org_mbr_src_cust_id, '-', ''))-- join the orgs that changed status in wk 35
---where rpt_dt between DATE('2022-09-24') and DATE('2022-09-30')
 GROUP BY 1,
          2,
          3,
@@ -274,11 +321,41 @@ GROUP BY 1,
          5 ;
 
 
-SELECT *
-FROM pb_analytics.org_2022_daily --------gmv daily------------------------------------------------------------------------------------------------
+-------------<view2>: orders and GMV for cumulative members and net new members ---------------------
+--------gmv cumulative new members------------------------------------------------------------------------------------------------
+SELECT membership_status,
+       count(DISTINCT order_nbr) AS orders,
+       sum(coalesce(b.gmv_order_amt, 0)) AS total_gmv
+FROM
+  (SELECT *
+   FROM pb_analytics.cumulative_org_2022_daily
+   WHERE WEEK = 'week 34') a
+LEFT JOIN
+  (SELECT *
+   FROM WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+   WHERE mart_org_nm = 'Business.walmart.com'
+     AND order_plcd_dt BETWEEN DATE('2022-09-17') AND DATE('2022-09-23') ) b ON a.cust_pg_acct_id = upper(regexp_replace(b.cust_pg_acct_id, '-', ''))
+AND a.rpt_dt = b.order_plcd_dt
+GROUP BY 1 ;
 
-SELECT membership_status--, count(distinct org_id) as orgs, count(distinct a.cust_pg_acct_id) as customers
-,
+
+SELECT membership_status,
+       count(DISTINCT order_nbr) AS orders,
+       sum(coalesce(b.gmv_order_amt, 0)) AS total_gmv
+FROM
+  (SELECT *
+   FROM pb_analytics.cumulative_org_2022_daily
+   WHERE WEEK = 'week 35') a
+LEFT JOIN
+  (SELECT *
+   FROM WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+   WHERE mart_org_nm = 'Business.walmart.com'
+     AND order_plcd_dt BETWEEN DATE('2022-09-24') AND DATE('2022-09-30')) b ON a.cust_pg_acct_id = upper(regexp_replace(b.cust_pg_acct_id, '-', ''))
+AND a.rpt_dt = b.order_plcd_dt
+GROUP BY 1 ;
+
+--------gmv net new members------------------------------------------------------------------------------------------------
+SELECT membership_status,
        count(DISTINCT order_nbr) AS orders,
        sum(coalesce(b.gmv_order_amt, 0)) AS total_gmv
 FROM
@@ -294,8 +371,7 @@ AND a.rpt_dt = b.order_plcd_dt
 GROUP BY 1 ;
 
 
-SELECT membership_status--, count(distinct org_id) as orgs, count(distinct a.cust_pg_acct_id) as customers
-,
+SELECT membership_status,
        count(DISTINCT order_nbr) AS orders,
        sum(coalesce(b.gmv_order_amt, 0)) AS total_gmv
 FROM
@@ -310,40 +386,7 @@ LEFT JOIN
 AND a.rpt_dt = b.order_plcd_dt
 GROUP BY 1 ;
 
-------gmv cumulative----------------------
- /*
-
-select coalesce(mbrshp_status_cd,'FREE') as member_status, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as customers
-,count(distinct order_nbr) as orders
-, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
-from (select mbrshp_status_cd, org_id,org_mbr_src_cust_id
-  from pb_analytics.org_2022 where week = 'week 35' group by 1,2,3)a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
-where mart_org_nm = 'Business.walmart.com'
-and order_plcd_dt between DATE('2022-09-24') and DATE('2022-09-30')) b on a.org_mbr_src_cust_id = b.cust_pg_acct_id
-group by 1
-
-*/
-CREATE TABLE pb_analytics.gmv_daily AS
-SELECT mbrshp_status_cd,
-       count(DISTINCT org_id) AS orgs,
-       count(DISTINCT org_mbr_src_cust_id) AS customers,
-       sum(coalesce(gmv_order_amt, 0)) AS total_gmv
-FROM
-  (SELECT coalesce(mbrshp_status_cd, 'FREE') AS mbrshp_status_cd,
-          org_id,
-          org_mbr_src_cust_id,
-          gmv_order_amt
-   FROM pb_analytics.org_daily a
-   LEFT JOIN
-     (SELECT *
-      FROM WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
-      WHERE mart_org_nm = 'Business.walmart.com'
-        AND order_plcd_dt BETWEEN DATE('2022-09-17') AND DATE('2022-09-23')) b ON (a.org_mbr_src_cust_id = b.cust_pg_acct_id
-                                                                                   AND order_plcd_dt = ver_dt))
-GROUP BY 1
-ORDER BY 1 ;
-
-------------------------------------cohort--------------------------------------------------------
+------------------------------------<view4: >cohort analysis--------------------------------------------------------
 
 SELECT coalesce(mbrshp_status_cd, 'FREE') AS member_status,
        count(DISTINCT org_id) AS orgs,
@@ -386,7 +429,8 @@ LEFT JOIN
    FROM WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
    WHERE mart_org_nm = 'Business.walmart.com'
      AND order_plcd_dt BETWEEN DATE('2022-09-17') AND DATE('2022-09-30')) b ON a.org_mbr_src_cust_id = b.cust_pg_acct_id
-GROUP BY 1 --------cohort cancel----------------------
+GROUP BY 1 
+--------cohort cancel----------------------
 
 SELECT count(DISTINCT a.org_id),
        count(DISTINCT b.org_id)
