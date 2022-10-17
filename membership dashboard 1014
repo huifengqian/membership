@@ -1,3 +1,19 @@
+-----------calendar---------------------------
+select min(cal_dt),max(cal_dt) from ww_core_dim_dl_tables.dl_calendar_dim
+where fiscal_full_yr_nbr = 2023
+and wm_wk_nbr = 35
+;
+-- 9/17 - 9/23
+--9/24-9/30
+
+select  min(cal_dt),max(cal_dt) 
+from ww_core_dim_dl_tables.dl_calendar_dim
+where fiscal_full_yr_nbr = 2023
+
+
+select max(event_ts) from  pb_analytics.cust_b2b_mbrshp_dly
+
+
 
 --------------mbr universe-----------------
 ----------------week 35 cumulative members and their latest status------------
@@ -95,3 +111,119 @@ inner join
 where rnk = 1
 group by 1,2,3,4,5,6,7
 ;
+
+
+--------add free accounts-------------------------
+drop table pb_analytics.org_20220923 ;
+create table pb_analytics.org_20220923 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+left join pb_analytics.mbrship_universe_20220923 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-17') and DATE('2022-09-23')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+
+drop table  pb_analytics.org_20220930 ;
+create table pb_analytics.org_20220930 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+left join pb_analytics.mbrship_universe_20220930 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-17') and DATE('2022-09-30')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+
+drop table  pb_analytics.org_20221007 ;
+create table pb_analytics.org_20221007 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+left join pb_analytics.mbrship_universe_20221007 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-16') and DATE('2022-10-07')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+drop table  pb_analytics.org_20221014 ;
+create table pb_analytics.org_20221014 as 
+select o.org_id, 
+o.org_mbr_src_cust_id,
+o.org_nm,
+o.org_city_nm,
+o.org_st_cd,
+o.org_cntry_nm,
+o.org_postal_cd,
+o.org_verif_status_desc,
+coalesce(m.mbrshp_status_cd,'FREE') as mbrshp_status_cd ,
+m.org_id as mbr_org_id, 
+m.org_mbr_src_cust_id as mbr_src_cust_id
+from ww_customer_dl_secure.cust_b2b_org o 
+left join pb_analytics.mbrship_universe_20221014 m on o.org_id = m.org_id and o.org_mbr_src_cust_id = m.org_mbr_src_cust_id
+where op_cmpny_cd = 'WMT-US'
+--and o.org_verif_status_desc = 'VERIFIED'
+and DATE(src_create_ts) between DATE('2022-09-16') and DATE('2022-10-14')
+group by 1,2,3,4,5,6,7,8,9,10,11
+;
+
+
+-----cumulative trend------------------------
+
+drop table pb_analytics.cum_orgs_20221014;
+create table pb_analytics.cum_orgs_20221014 as 
+select 'week 34' as week, mbrshp_status_cd,org_verif_status_desc, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as users
+from pb_analytics.org_20220923
+group by 1,2,3
+union 
+select 'week 35' as week, mbrshp_status_cd, org_verif_status_desc, count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as users
+from pb_analytics.org_20220930
+group by 1,2,3
+union 
+select 'week 36' as week, mbrshp_status_cd,org_verif_status_desc,  count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as users
+from pb_analytics.org_20221007
+group by 1,2,3
+union 
+select 'week 37' as week, mbrshp_status_cd,org_verif_status_desc,  count(distinct org_id) as orgs, count(distinct org_mbr_src_cust_id) as users
+from pb_analytics.org_20221014
+where mbrshp_status_cd <> 'CANCELLED'
+group by 1,2,3
+;
+
+
+
+
+
