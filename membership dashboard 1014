@@ -1,0 +1,97 @@
+
+--------------mbr universe-----------------
+----------------week 35 cumulative members and their latest status------------
+drop table pb_analytics.mbrship_universe_20220923;
+create table pb_analytics.mbrship_universe_20220923 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from  pb_analytics.cust_b2b_mbrshp_dly
+where DATE(event_ts) <= DATE('2022-09-23')
+and plan_id = 'B2BBASE365'
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org --where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6
+;
+
+
+drop table pb_analytics.mbrship_universe_20220930;
+create table pb_analytics.mbrship_universe_20220930 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from   PB_ANALYTICS.TEST_MBRSHIP_TABLE
+where DATE(event_ts) <= DATE('2022-09-30')
+and plan_id = 'B2BBASE365'
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org-- where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6
+;
+
+
+drop table pb_analytics.mbrship_universe_20221007;
+create table pb_analytics.mbrship_universe_20221007 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id,
+b.org_verif_status_desc 
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from  pb_analytics.cust_b2b_mbrshp_dly
+where DATE(event_ts) <= DATE('2022-10-07')
+and plan_id = 'B2BBASE365'
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org-- where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6,7
+;
+
+
+
+drop table pb_analytics.mbrship_universe_20221014;
+create table pb_analytics.mbrship_universe_20221014 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id,
+b.org_verif_status_desc 
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from  pb_analytics.cust_b2b_mbrshp_dly
+where DATE(event_ts) <= DATE('2022-10-14')
+and plan_id = 'B2BBASE365'
+--and ver_dt between DATE('2022-09-24') and DATE('2022-09-30') -- newly signed up members
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org-- where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6,7
+;
