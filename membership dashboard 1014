@@ -515,7 +515,7 @@ where mart_org_nm = 'Business.walmart.com'
 and order_plcd_dt between DATE('2022-10-08') and DATE('2022-10-14')) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
 group by 1,2,3
 ;
-
+----------------cohort analysis---------
 
 drop table pb_analytics.org_cohort;
 create table pb_analytics.org_cohort as 
@@ -594,7 +594,7 @@ from pb_analytics.org_2022
 where mbrshp_status_cd  = 'TRIAL'
 group by 1
 )
-select cohort.wk_since_trial,cohort.cohort, 1.00*cohort.orgs/total_orgs as engagement_rate
+select cohort.wk_since_trial,cohort.cohort, 1.000*cohort.orgs/total_orgs as engagement_rate, 1.00*cohort.orders/total_orgs as purchase_freq
 from cohort inner join total on lower(cohort) = lower(week)
 order by 2,1
 ;
@@ -634,7 +634,7 @@ from pb_analytics.org_2022
 where mbrshp_status_cd  = 'FREE'
 group by 1
 )
-select cohort.wk_since_trial,cohort.cohort, 1.00*cohort.orgs/total_orgs as baseline_engagement_rate
+select cohort.wk_since_trial,cohort.cohort, 1.00*cohort.orgs/total_orgs as baseline_engagement_rate, 1.00*cohort.orders/total_orgs as baseline_purchase_freq
 from cohort inner join total on lower(cohort) = lower(week)
 order by 2,1
 ;
@@ -642,3 +642,17 @@ order by 2,1
 
 
 
+--------cohort cancel----------------------
+
+SELECT count(DISTINCT a.org_id),
+       count(DISTINCT b.org_id)
+FROM
+  (SELECT *
+   FROM pb_analytics.org_2022
+   WHERE WEEK = 'week 34'
+     AND mbrshp_status_cd = 'TRIAL' )a
+left JOIN
+  (SELECT *
+   FROM pb_analytics.org_2022
+   WHERE WEEK = 'week 37'
+     AND mbrshp_status_cd = 'EXPIRED' )b ON a.org_id = b.org_id
