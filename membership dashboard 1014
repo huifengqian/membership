@@ -461,4 +461,59 @@ GROUP BY 1,
          ;
          */
          
+         
+    
+
+
+--------gmv daily------------------------------------------------------------------------------------------------
+
+select membership_status, week, 1.00*sum(total_gmv)/sum(orders)
+from  pb_analytics.net_new_gmv_20221014
+group by 1,2
+order by 1,2
+
+
+create table pb_analytics.net_new_gmv_20221014 as 
+select week, 
+membership_status,
+org_verif_status_desc 
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 34')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-17') and DATE('2022-09-23')
+) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1,2,3
+union 
+select week,
+membership_status,
+org_verif_status_desc 
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 35')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-09-24') and DATE('2022-09-30')) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1,2,3
+union 
+select week,
+membership_status,
+org_verif_status_desc 
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 36')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-10-01') and DATE('2022-10-07')) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1,2,3
+union 
+select week,
+membership_status,
+org_verif_status_desc 
+,count(distinct order_nbr) as orders
+, sum(coalesce(b.gmv_order_amt,0)) as total_gmv
+from (select * from pb_analytics.org_2022_daily where week = 'week 37')  a left join (select * from WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+where mart_org_nm = 'Business.walmart.com' 
+and order_plcd_dt between DATE('2022-10-08') and DATE('2022-10-14')) b on a.cust_pg_acct_id = upper(regexp_replace( b.cust_pg_acct_id, '-', '')) and a.rpt_dt = b.order_plcd_dt
+group by 1,2,3
+;
+
 
