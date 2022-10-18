@@ -517,3 +517,128 @@ group by 1,2,3
 ;
 
 
+drop table pb_analytics.org_cohort;
+create table pb_analytics.org_cohort as 
+SELECT 
+mbrshp_status_cd ,
+date_diff('WEEK',DATE(a.wk_start_dt),DATE( order_plcd_dt)) as wk_since_trial,
+Cohort,
+a.org_id,
+b.daily_orders,
+b.daily_gmv
+FROM
+  (SELECT week as Cohort,
+  wk_start_dt,
+  wk_end_dt,
+  mbrshp_status_cd,
+          org_id,
+          org_mbr_src_cust_id
+   FROM pb_analytics.org_2022 o
+inner join 
+            (
+            select  wm_wk_nm ,min(cal_dt) as wk_start_dt ,max(cal_dt) as wk_end_dt
+         from 
+  ww_core_dim_dl_tables.dl_calendar_dim
+     where fiscal_full_yr_nbr = 2023
+     group by 1
+            )cal on upper(o.week) = upper(cal.wm_wk_nm)
+             where mbrshp_status_cd  in ('TRIAL','FREE')
+   GROUP BY 1,
+            2,
+            3,
+            4,5,6
+      )a
+            
+LEFT JOIN
+  (SELECT order_plcd_dt , cust_pg_acct_id,count(distinct order_nbr) as daily_orders, sum(coalesce(gmv_order_amt,0)) as daily_gmv
+   FROM WW_CREW_DL_RPT_VM.CNSLD_ORDER_ITEM
+   WHERE mart_org_nm = 'Business.walmart.com'
+     AND order_plcd_dt BETWEEN DATE('2022-09-17') AND DATE('2022-10-14')
+     group by 1,2
+     ) b ON a.org_mbr_src_cust_id = b.cust_pg_acct_id and b.order_plcd_dt >= a.wk_start_dt
+GROUP BY 1,2,3,4,5,6
+;
+
+------------------------trial engage rate ----------------------------
+with cohort as 
+(
+select  1 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 1 
+and mbrshp_status_cd  = 'TRIAL'
+group by 1,2
+union 
+select  2 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 2
+and mbrshp_status_cd  = 'TRIAL'
+group by 1,2
+union 
+select  3 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 3
+and mbrshp_status_cd  = 'TRIAL'
+group by 1,2
+union 
+select  4 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 4
+and mbrshp_status_cd  = 'TRIAL'
+group by 1,2
+order by 1,2
+),
+total as 
+(
+select week, count(distinct org_id) as total_orgs
+from pb_analytics.org_2022 
+where mbrshp_status_cd  = 'TRIAL'
+group by 1
+)
+select cohort.wk_since_trial,cohort.cohort, 1.00*cohort.orgs/total_orgs as engagement_rate
+from cohort inner join total on lower(cohort) = lower(week)
+order by 2,1
+;
+
+------------------------baseline engage rate ----------------------------
+with cohort as 
+(
+select  1 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 1 
+and mbrshp_status_cd  = 'FREE'
+group by 1,2
+union 
+select  2 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 2
+and mbrshp_status_cd  = 'FREE'
+group by 1,2
+union 
+select  3 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 3
+and mbrshp_status_cd  = 'FREE'
+group by 1,2
+union 
+select  4 as wk_since_trial, cohort,count(distinct org_id) as orgs, sum(daily_orders) as orders, sum(daily_gmv) as gmv
+from  pb_analytics.org_cohort
+where wk_since_trial < 4
+and mbrshp_status_cd  = 'FREE'
+group by 1,2
+order by 1,2
+),
+total as 
+(
+select week, count(distinct org_id) as total_orgs
+from pb_analytics.org_2022 
+where mbrshp_status_cd  = 'FREE'
+group by 1
+)
+select cohort.wk_since_trial,cohort.cohort, 1.00*cohort.orgs/total_orgs as baseline_engagement_rate
+from cohort inner join total on lower(cohort) = lower(week)
+order by 2,1
+;
+
+
+
+
