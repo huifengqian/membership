@@ -112,6 +112,30 @@ where rnk = 1
 group by 1,2,3,4,5,6,7
 ;
 
+drop table pb_analytics.mbrship_universe_20221021 ;
+create table pb_analytics.mbrship_universe_20221021 as 
+select a.*, 
+b.org_mbr_src_cust_id, --other cust id on the same account 
+b.org_id,
+b.org_verif_status_desc 
+from
+(
+select mbrshp_id, 
+pg_cust_id as prmry_mbr_src_cust_id,
+mbrshp_status_cd,
+ rank() over (partition by mbrshp_id, pg_cust_id order by event_ts desc) as rnk --get membership status by EOW
+ from  pb_analytics.cust_b2b_mbrshp_dly
+where DATE(event_ts) <= DATE('2022-10-21')
+and plan_id = 'B2BBASE365'
+--and ver_dt between DATE('2022-09-24') and DATE('2022-09-30') -- newly signed up members
+)a
+inner join 
+(select * from ww_customer_dl_secure.cust_b2b_org-- where DATE(src_create_ts) >= DATE('2022-09-16')
+) b on a.prmry_mbr_src_cust_id = b.prmry_mbr_src_cust_id
+where rnk = 1
+group by 1,2,3,4,5,6,7
+;
+
 
 --------add free accounts-------------------------
 drop table pb_analytics.org_20220923 ;
@@ -201,6 +225,8 @@ group by 1,2,3,4,5,6,7,8,9,10,11
 ;
 
 
+
+
 -----cumulative trend------------------------
 ---------<output 1 cumulative orgs>------------------------
 
@@ -227,7 +253,7 @@ group by 1,2,3
 
 
 
-----find out the "net news" which is WOW------------------------------------
+----find out the "net news" which is WOW----------------------------------------find out the "net news" which is WOW------------------------------------
 drop table pb_analytics.org_2022; 
 create table pb_analytics.org_2022 as 
 select 'week 34' as week, * from pb_analytics.org_20220923 W1
@@ -287,7 +313,31 @@ on W2.org_id = overlap.org_id
 where overlap.org_id is null
 group by 1,2,3,4,5,6,7,8,9,10,11,12
 
+union 
+
+select 'week 38' as week, W2.* from pb_analytics.org_20221021 W2
+left join 
+-------------------------from cumulative to net --
+(
+select a.* from 
+(
+select 'week 38' as week, mbrshp_status_cd, org_id, org_mbr_src_cust_id , mbr_org_id, mbr_src_cust_id from pb_analytics.org_20221021
+group by 1,2,3,4,5,6)a
+inner join 
+(select 'week 37' as week,  mbrshp_status_cd, org_id, org_mbr_src_cust_id , mbr_org_id, mbr_src_cust_id from pb_analytics.org_20221014
+group by 1,2,3,4,5,6)b
+on a.org_id = b.org_id and a.mbrshp_status_cd = b.mbrshp_status_cd 
+)overlap 
+on W2.org_id = overlap.org_id 
+where overlap.org_id is null
+group by 1,2,3,4,5,6,7,8,9,10,11,12
+
 ;
+
+select week, mbrshp_status_cd, count(distinct org_id)
+from pb_analytics.org_2022
+group by 1,2
+order by 1,2
 
 -------------breakout for the trial members----------------
 
