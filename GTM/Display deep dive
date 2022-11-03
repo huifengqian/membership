@@ -212,3 +212,9 @@ inner join landing_page lp on sv.session_id = lp.session_id
 where sv.veh = 'display'
 group by 1,2,3
 ;
+
+
+
+select landing_page_type, sum(total_sessions), sum(bounce_sessions)
+from pb_analytics.display_landing_20221021_b2c
+group by 1
