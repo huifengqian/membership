@@ -133,20 +133,21 @@ group by 1,2,3
 
 
 ------#####################B2C-----------------------------------------
-
-create table pb_analytics.session_page_rnk_b2c_20222021 as 
+create table pb_analytics.session_page_rnk_b2c_tmp as 
 (
-select evar26 as session_id, page_nm, prop1 as page_type, row_number() over (partition by evar26 order by dt_ts) as page_rnk
+select evar26 as session_id--, page_nm, prop1 as page_type
+, min(dt_ts) as first_ts--, row_number() over (partition by evar26 order by dt_ts) as page_rnk
  from
 ww_csd_dl_tables.csd_adobe_event
 where  tenant_ste_cd = 'US_GLASS_CORESITE'
 and op_cmpny_cd  = 'WMT.COM'
-and event_dt between '2022-10-15' and '2022-10-21'
+and event_dt between '2022-09-17' and '2022-10-28'
 and page_nm <> 'globalNavigation:globalIntentCenter' --tease out global nav
 and excl_hit_cd = 0
+group by 1
 )
 
----------display first page bounce analysis-------------------------------------------------------
+
 create table pb_analytics.session_page_rnk_b2c as 
 (
 select a.evar26 as session_id, max(a.page_nm) as page_nm, max(a.prop1) as page_type--, row_number() over (partition by evar26 order by dt_ts) as page_rnk
@@ -159,6 +160,8 @@ and a.page_nm <> 'globalNavigation:globalIntentCenter' --tease out global nav
 and a.excl_hit_cd = 0
 group by 1
 )
+
+
 
 
 drop table  pb_analytics.display_landing_20221021_b2c;
@@ -197,8 +200,8 @@ group by 1
 landing_page as 
 (
 select session_id, page_nm as landing_page_nm, page_type as landing_page_type
-from pb_analytics.session_page_rnk_b2c_20222021
-where page_rnk = 1
+from pb_analytics.session_page_rnk_b2c
+--where page_rnk = 1
 group by 1,2,3
 )
 select sv.veh,
@@ -218,5 +221,3 @@ group by 1,2,3
 select landing_page_type, sum(total_sessions), sum(bounce_sessions)
 from pb_analytics.display_landing_20221021_b2c
 group by 1
-
-
