@@ -161,6 +161,7 @@ group by 1
 )
 
 
+drop table  pb_analytics.display_landing_20221021_b2c;
 create table pb_analytics.display_landing_20221021_b2c as 
 with session_veh as 
 (
@@ -174,7 +175,7 @@ and excl_hit_cd = 0
 and op_cmpny_cd  = 'WMT.COM'
 and event_dt between '2022-10-15' and '2022-10-21'
 and (evar4 like '%dsn%' or evar4 like '%sem%') 
-and page_nm <> 'globalNavigation:globalIntentCenter'
+and page_nm not like  'globalNavigation:%'
 group by 1
 )
 ,
@@ -189,7 +190,7 @@ where  tenant_ste_cd = 'US_GLASS_CORESITE'
 and excl_hit_cd = 0
 and op_cmpny_cd  = 'WMT.COM'
 and event_dt between '2022-10-15' and '2022-10-21'
-and page_nm <> 'globalNavigation:globalIntentCenter'
+and page_nm not like  'globalNavigation:%'
 group by 1
 )
 ,
@@ -214,7 +215,8 @@ group by 1,2,3
 ;
 
 
-
 select landing_page_type, sum(total_sessions), sum(bounce_sessions)
 from pb_analytics.display_landing_20221021_b2c
 group by 1
+
+
