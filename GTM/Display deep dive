@@ -223,3 +223,66 @@ select landing_page_type, sum(total_sessions), sum(bounce_sessions)
 from pb_analytics.display_landing_20221021_b2c
 group by 1
 ;
+
+
+
+
+
+drop table  pb_analytics.display_landing_b2c;
+create table pb_analytics.display_landing_b2c as 
+with session_veh as 
+(
+select evar26 as session_id, max(case when evar4 like '%dsn%' then 'display'
+            when evar4 like '%sem%' then 'sem'
+            else 'others' end) as veh 
+    from
+ww_csd_dl_tables.csd_adobe_event
+where  tenant_ste_cd = 'US_GLASS_CORESITE'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-09-17' and '2022-10-28'
+and (evar4 like '%dsn%' or evar4 like '%sem%') 
+and page_nm not like  'globalNavigation:%'
+group by 1
+)
+,
+session_pages as 
+(
+select evar26 as session_id, count(distinct page_nm) as pages, 
+count(distinct evar20) as orders, 
+count(distinct case when lower(prop58) like '%onclickaddtocart%' then concat(prop17,dt_ts) else null end ) as atc
+from
+ww_csd_dl_tables.csd_adobe_event
+where  tenant_ste_cd = 'US_GLASS_CORESITE'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between  '2022-09-17' and '2022-10-28'
+and page_nm not like  'globalNavigation:%'
+group by 1
+)
+,
+landing_page as 
+(
+select session_id, page_nm as landing_page_nm, page_type as landing_page_type
+from pb_analytics.session_page_rnk_b2c
+--where page_rnk = 1
+group by 1,2,3
+)
+select sv.veh,
+lp.landing_page_nm, 
+landing_page_type,
+count(distinct sv.session_id) as total_sessions , 
+count(distinct case when pages <=1 then sv.session_id end) as bounce_sessions,
+count(coalesce(atc,0)) as atc,
+sum(coalesce(orders,0)) as total_orders
+from session_veh sv inner join session_pages pg on sv.session_id= pg.session_id 
+inner join landing_page lp on sv.session_id = lp.session_id
+where sv.veh = 'display'
+group by 1,2,3
+;
+
+
+select landing_page_type, sum(total_sessions), sum(bounce_sessions)
+from pb_analytics.display_landing_b2c
+group by 1
+;
