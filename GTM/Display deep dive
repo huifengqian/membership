@@ -132,7 +132,7 @@ group by 1,2,3
 ;
 
 
-------#####################B2C-----------------------------------------
+------#####################B2C-----------------------------------------drop table pb_analytics.session_page_rnk_b2c_tmp ;
 create table pb_analytics.session_page_rnk_b2c_tmp as 
 (
 select evar26 as session_id--, page_nm, prop1 as page_type
@@ -142,12 +142,13 @@ ww_csd_dl_tables.csd_adobe_event
 where  tenant_ste_cd = 'US_GLASS_CORESITE'
 and op_cmpny_cd  = 'WMT.COM'
 and event_dt between '2022-09-17' and '2022-10-28'
-and page_nm <> 'globalNavigation:globalIntentCenter' --tease out global nav
+and page_nm not like 'globalNavigation:%' --tease out global nav
 and excl_hit_cd = 0
 group by 1
 )
+;
 
-
+drop table pb_analytics.session_page_rnk_b2c ;
 create table pb_analytics.session_page_rnk_b2c as 
 (
 select a.evar26 as session_id, max(a.page_nm) as page_nm, max(a.prop1) as page_type--, row_number() over (partition by evar26 order by dt_ts) as page_rnk
@@ -156,13 +157,13 @@ ww_csd_dl_tables.csd_adobe_event a inner join pb_analytics.session_page_rnk_b2c_
 where  a.tenant_ste_cd = 'US_GLASS_CORESITE'
 and a.op_cmpny_cd  = 'WMT.COM'
 and a.event_dt between '2022-09-17' and '2022-10-28'
-and a.page_nm <> 'globalNavigation:globalIntentCenter' --tease out global nav
+and a.page_nm not like  '%globalNavigation:%' --tease out global nav
 and a.excl_hit_cd = 0
 group by 1
 )
+;
 
-
-
+select * from pb_analytics.display_landing_20221021_b2c
 
 drop table  pb_analytics.display_landing_20221021_b2c;
 create table pb_analytics.display_landing_20221021_b2c as 
@@ -221,3 +222,4 @@ group by 1,2,3
 select landing_page_type, sum(total_sessions), sum(bounce_sessions)
 from pb_analytics.display_landing_20221021_b2c
 group by 1
+;
