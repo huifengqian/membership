@@ -1,5 +1,142 @@
 -----------repeated visitor % by channel------
+--display--0.11--0.11
+with dsn as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+--,min(event_dt) as session_start_date
+,min(dt_ts) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-07'
+and (evar4 like '%dsn%')
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+),
+numtor as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+,min(event_dt) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-28'
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+)
+select 1.00*count(distinct a.vtc)/count(distinct b.vtc)
+from dsn b 
+left join numtor a 
+on b.vtc=a.vtc
+and b.session_id != a.session_id
+and b.session_start_date < a.session_start_date
 
+
+--sem--0.03--0.03
+with sem as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+--,min(event_dt) as session_start_date
+,min(dt_ts) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-07'
+and (evar4 like '%sem%')
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+),
+numtor as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+,min(event_dt) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-28'
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+)
+select 1.00*count(distinct a.vtc)/count(distinct b.vtc)
+from sem b 
+left join numtor a 
+on b.vtc=a.vtc
+and b.session_id != a.session_id
+and b.session_start_date < a.session_start_date
+
+
+--seo--0.15--0.15
+with seo as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+--,min(event_dt) as session_start_date
+,min(dt_ts) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-07'
+and (evar4 like '%seo%')
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+),
+numtor as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+,min(event_dt) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-28'
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+)
+select 1.00*count(distinct a.vtc)/count(distinct b.vtc)
+from seo b 
+left join numtor a 
+on b.vtc=a.vtc
+and b.session_id != a.session_id
+and b.session_start_date < a.session_start_date
+
+
+--eml--0.12--0.12
+with eml as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+--,min(event_dt) as session_start_date
+,min(dt_ts) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-07'
+and (evar4 like '%eml%')
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+),
+numtor as (
+select distinct(prop17) as vtc
+,evar26 as session_id
+,min(event_dt) as session_start_date
+from ww_csd_dl_tables.csd_adobe_event
+where tenant_ste_cd = 'US_B2B'
+and excl_hit_cd = 0
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-10-01' and '2022-10-28'
+and page_nm <> 'globalNavigation:globalIntentCenter'
+group by 1,2
+)
+select 1.00*count(distinct a.vtc)/count(distinct b.vtc)
+from eml b 
+left join numtor a 
+on b.vtc=a.vtc
+and b.session_id != a.session_id
+and b.session_start_date < a.session_start_date
 -----------(% sessions < 2s) -----
 
 -----------(% sessions < 5s) -----
