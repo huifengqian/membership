@@ -1,0 +1,15 @@
+---------rank by timestamp-------------------------------------------
+drop table pb_analytics.session_page_rnk ;
+create table pb_analytics.session_page_rnk as 
+(
+select evar26 as session_id, page_nm, prop1 as page_type, row_number() over (partition by evar26 order by dt_ts) as page_rnk
+, row_number() over (partition by evar26 order by dt_ts desc ) as page_rnk_rev
+ from
+ww_csd_dl_tables.csd_adobe_event
+where  tenant_ste_cd = 'US_B2B'
+and op_cmpny_cd  = 'WMT.COM'
+and event_dt between '2022-09-17' and '2022-10-28'
+and page_nm not like  'globalNavigation:%' --tease out global nav
+and excl_hit_cd = 0
+)
+;
